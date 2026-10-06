@@ -22,7 +22,7 @@ int amilan_ipv4(const char *s, uint8_t ip[4])
 }
 int amilan_packet_valid(const struct amilan_packet *p, const struct amilan_codec *codec)
 {
-    return codec && p && p->type && p->len <= AMILAN_PAYLOAD &&
+    return codec && p && p->type && p->type <= codec->last_type && p->len <= AMILAN_PAYLOAD &&
         (!codec->validate || codec->validate(p));
 }
 unsigned amilan_encode(uint8_t *dst, unsigned cap, const struct amilan_packet *p, const struct amilan_codec *codec)
@@ -39,7 +39,7 @@ int amilan_decode(struct amilan_packet *p, const uint8_t *src, unsigned size, un
     unsigned i, n;
     *used = 0;
     if (size < AMILAN_HEADER) return 0;
-    if (!codec || src[0] != codec->magic[0] || src[1] != codec->magic[1] || src[2] != codec->version || !src[3] || src[6] || src[7]) return -1;
+    if (!codec || src[0] != codec->magic[0] || src[1] != codec->magic[1] || src[2] != codec->version || !src[3] || src[3] > codec->last_type || src[6] || src[7]) return -1;
     n = amilan_get16(src + 4);
     if (n > AMILAN_PAYLOAD) return -1;
     if (size < AMILAN_HEADER + n) return 0;

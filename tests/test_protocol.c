@@ -5,13 +5,14 @@
 static int valid(const struct amilan_packet *p){return p->type==250&&p->len==4;}
 int main(void)
 {
-    const struct amilan_codec c={{'X','Y'},42,0},strict={{'X','Y'},42,valid};
+    const struct amilan_codec c={{'X','Y'},42,255,0},strict={{'X','Y'},42,250,valid};
     struct amilan_packet p={512,255,{0}},v;uint8_t b[AMILAN_FRAME+1],ip[4]={1,2,3,4};unsigned used,i,j,n;uint32_t random=1234567;
     for(i=0;i<512;i++)p.data[i]=(uint8_t)i;
     assert(amilan_encode(b,sizeof(b),&p,&c)==520&&b[0]=='X'&&b[1]=='Y'&&b[2]==42&&b[3]==255);
     for(i=0;i<520;i++)assert(!amilan_decode(&v,b,i,&used,&c)&&!used);
     assert(amilan_decode(&v,b,521,&used,&c)==1&&used==520&&v.type==255&&!memcmp(v.data,p.data,512));
     assert(amilan_decode(&v,b,520,&used,&strict)==-1&&!used);
+    assert(amilan_decode(&v,b,8,&used,&strict)==-1&&!used); /* reject unknown ID before payload arrives */
     b[2]++;assert(amilan_decode(&v,b,520,&used,&c)==-1);b[2]--;
     b[6]=1;assert(amilan_decode(&v,b,520,&used,&c)==-1);b[6]=0;
     amilan_put16(b+4,513);assert(amilan_decode(&v,b,8,&used,&c)==-1&&!used);

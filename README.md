@@ -89,7 +89,7 @@ short-lived stack storage: copy any data needed beyond the callback.
 static int valid(const struct amilan_packet *p) {
     return p->type == 1 && p->len == 4;
 }
-static const struct amilan_codec wire = {{'E','X'}, 1, valid};
+static const struct amilan_codec wire = {{'E','X'}, 1, 255, valid};
 static int receive(void *context, struct amilan_peer *peer,
                    const struct amilan_packet *p) {
     return amilan_peer_queue(peer, p, *(uint32_t *)context, &wire);

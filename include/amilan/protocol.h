@@ -12,9 +12,9 @@
 enum amilan_reason { AMILAN_NORMAL, AMILAN_BAD_PACKET, AMILAN_TIMEOUT,
  AMILAN_FULL, AMILAN_IO_ERROR, AMILAN_BACKPRESSURE, AMILAN_REJECTED };
 struct amilan_packet { uint16_t len; uint8_t type; uint8_t data[AMILAN_PAYLOAD]; };
-/* Types 1..255 belong to the application. No game packet IDs in AmiLAN.
+/* Types 1..last_type (up to 255) belong to the application. No game packet IDs in AmiLAN.
  * validate is optional, called for complete incoming and outgoing packets. */
-struct amilan_codec { uint8_t magic[2], version; int (*validate)(const struct amilan_packet *); };
+struct amilan_codec { uint8_t magic[2], version, last_type; int (*validate)(const struct amilan_packet *); };
 uint16_t amilan_get16(const uint8_t *p);
 uint32_t amilan_get32(const uint8_t *p);
 void amilan_put16(uint8_t *p,uint16_t n);

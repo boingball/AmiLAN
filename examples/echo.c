@@ -8,7 +8,7 @@
 #include <stdlib.h>
 static volatile sig_atomic_t running=1;
 static int hosting,received;
-static const struct amilan_codec codec={{'E','X'},1,0};
+static const struct amilan_codec codec={{'E','X'},1,255,0};
 static uint32_t ticks(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (uint32_t)((uint64_t)t.tv_sec*50+t.tv_nsec/20000000);}
 static void stop(int signal_number){(void)signal_number;running=0;}
 static int receive(void *ctx,struct amilan_peer *peer,const struct amilan_packet *p)
