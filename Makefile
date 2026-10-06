@@ -2,7 +2,7 @@ CC ?= cc
 AR ?= ar
 CFLAGS ?= -O2 -Wall -Wextra -Werror
 CPPFLAGS += -Iinclude
-CORE := src/protocol.c src/ipv4_text.c src/stream.c src/host.c src/link.c
+CORE := src/protocol.c src/ipv4_text.c src/stream.c src/host.c src/link.c src/discovery.c
 SOURCES := $(CORE) host/socket.c
 OBJECTS := $(patsubst %.c,build/%.o,$(SOURCES))
 .PHONY: all test clean
@@ -17,7 +17,7 @@ clean:
 
 build/test_stream: tests/test_stream.c tests/support.h $(CORE) $(wildcard include/amilan/*.h)
 	@mkdir -p build
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_stream.c $(CORE)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ tests/test_stream.c $(filter-out src/discovery.c,$(CORE))
 test: build/test_stream build/test_host
 	./build/test_stream
 	./build/test_host
