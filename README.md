@@ -15,6 +15,7 @@ extraction, not a new networking stack.
 | `host.h` | Three remote connection slots, one accept attempt per call, excess-connection rejection, slot reuse and closed-ID bitmask |
 | `link.h` | Wrap-safe staged-handshake deadlines and application-selected four-byte ping/pong controls |
 | `discovery.h` | Fixed UDP request framing, nonce/version checks, broadcast fallback, receive/reply budgets and search expiry; application payload callbacks |
+| `zlib.h` | Optional fixed-memory zlib chunk compression, independent of sockets and message framing |
 
 Games own all message IDs and payload meanings. A receive callback must validate
 direction, handshake phase and authority before applying a packet. AmiLAN does
@@ -66,6 +67,8 @@ framing or discovery. Storage is caller-owned and reusable.
 | Discovery request / maximum reply | 16 / 60 bytes (44 application bytes) |
 | Discovery work | 4 received datagrams/poll, at most one reply per 13 ticks |
 | Discovery search / resend | 250 / 50 ticks |
+| Compression raw chunk / encoded chunk | 4096 / 512 bytes maximum |
+| Compression hash scratch | 256 uint16_t entries (512 bytes) on the encoder's stack; no persistent dictionary |
 
 Time is a caller-supplied monotonic **50 Hz** tick count. Connect/stall deadlines
 are 500 ticks and idle is 750 ticks. Unsigned subtraction handles wraparound.
@@ -125,6 +128,54 @@ stale results. Call `amilan_discovery_open`, `amilan_discovery_search` for a
 browser, `amilan_discovery_poll`, and `amilan_discovery_close`. Reuse the same
 codec through a lifecycle. Close before reopening an initialized instance.
 
+## Optional chunk compression
+
+`amilan/zlib.h` exposes `amilan_zlib_deflate` and `amilan_zlib_inflate` for
+snapshots or other application data. It has no allocator, floating point, C
+runtime or external zlib dependency. Compile `src/zlib.c` alone if only the
+codec is needed. Calls are independent and reentrant with separate buffers;
+input and output must not overlap. The encoder uses a single candidate per
+256-entry hash bucket, rather than an unbounded match search.
+
+This is a **bounded zlib wire profile**, not a general-purpose zlib decoder:
+header `78 01`, one final fixed-Huffman DEFLATE block, no preset dictionary,
+and an Adler-32 trailer. Standard zlib can decompress the output. Stored,
+dynamic-Huffman, multiple-block and other-header streams are unsupported.
+Raw sizes are 1..4096; encoded sizes are 8..512 bytes. The decoder requires
+the expected exact raw size, checks the checksum and rejects trailing bytes,
+invalid distances, truncation and output overflow. Output can be modified on
+failure; decode into scratch and commit only after a successful return.
+
+The application selects compressed/raw message IDs and carries the raw size,
+offset and any transfer checksum. Reserve message metadata space in the
+encoder's capacity; AmiLAN framing is unchanged. An encoded chunk need not
+be smaller, and incompressible input may not fit. Try smaller raw chunks or
+send raw data using the available payload space. For example:
+
+```c
+#include "amilan/zlib.h"
+
+uint8_t packed[AMILAN_ZLIB_PACKED], scratch[AMILAN_ZLIB_RAW];
+unsigned capacity = AMILAN_ZLIB_PACKED - metadata_bytes;
+unsigned bytes = amilan_zlib_deflate(packed, capacity, raw, raw_size);
+if (bytes && bytes < raw_size) {
+    /* Queue metadata + packed[0..bytes), retrying if the TX queue is full. */
+} else {
+    /* Split into raw payload-sized chunks, or retry compression smaller. */
+}
+/* After validating message metadata and exact expected raw size: */
+if (amilan_zlib_inflate(scratch, raw_size, packed, bytes)) {
+    /* Commit scratch[0..raw_size) at the validated destination offset. */
+}
+```
+
+Compression is opt-in; transport polling does not compress packets or change
+timeouts. Snapshot generation, join progress, pausing and raw fallback belong
+to the application. The tests check interoperability against Python's standard
+zlib, guarded buffer capacities, malformed input and sanitizer coverage of the
+C codec. The Python ctypes shared library is unsanitized; the standalone C
+test runs with ASan/UBSan under `make test-sanitize`.
+
 ## Compatibility and provenance
 
 Extracted from `boingball/AmiCraft` commit
@@ -134,6 +185,14 @@ link timeout/control pieces, discovery transport and both socket backends.
 Useful stream, pool, TCP/UDP and Amiga ABI scenarios were ported; game tests stay
 with AmiCraft. No license was added during extraction; the repository owner can
 choose one separately.
+
+The compression codec and independent zlib interoperability fixtures were
+extracted from AmiCraft commit `288f1e582f6eaa8aa909e2f59ff3d376f825ae4e`
+(`src/net/map_codec.c/.h`, `tests/test_map_codec.py`). Names are generalized to
+`amilan_zlib_*`; the upstream encoder caps capacity at 512 bytes to match the
+decoder's existing limit and both APIs reject null buffers. AmiCraft's existing
+compressed map bytes remain compatible. No automatic compression or new wire
+version is introduced.
 
 The eight-byte frame stays: signature[2], version[1], type[1], big-endian
 length[2], zero[2], then payload. Types 1..255 are application-defined.

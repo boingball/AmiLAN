@@ -2,11 +2,11 @@ CC ?= cc
 AR ?= ar
 CFLAGS ?= -O2 -Wall -Wextra -Werror
 CPPFLAGS += -Iinclude
-CORE := src/protocol.c src/ipv4_text.c src/stream.c src/host.c src/link.c src/discovery.c
+CORE := src/protocol.c src/ipv4_text.c src/stream.c src/host.c src/link.c src/discovery.c src/zlib.c
 SOURCES := $(CORE) host/socket.c
 HEADERS := $(wildcard include/amilan/*.h)
 OBJECTS := $(patsubst %.c,build/%.o,$(SOURCES))
-TESTS := protocol stream host discovery amiga
+TESTS := protocol stream host discovery amiga zlib
 .PHONY: all test test-sanitize check-amiga example clean
 all: build/libamilan.a
 build/%.o: %.c $(HEADERS)
@@ -29,9 +29,17 @@ build/test_discovery: tests/test_discovery.c $(SOURCES) $(HEADERS)
 build/test_amiga: tests/test_amiga.c amiga/socket.c src/protocol.c $(HEADERS)
 	@mkdir -p build
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(filter %.c,$^)
-test: $(addprefix build/test_,$(TESTS)) build/echo
+build/test_zlib: tests/test_zlib.c src/zlib.c $(HEADERS)
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(filter %.c,$^)
+# ctypes runs in the system Python process; sanitizer coverage uses test_zlib.
+build/zlib.so: src/zlib.c $(HEADERS)
+	@mkdir -p build
+	$(CC) $(CPPFLAGS) -O2 -Wall -Wextra -Werror -fPIC -shared -o $@ $<
+test: $(addprefix build/test_,$(TESTS)) build/echo build/zlib.so
 	@set -e; for t in $(TESTS); do ./build/test_$$t; done
 	python3 tests/test_echo.py
+	python3 tests/test_zlib.py
 test-sanitize:
 	$(MAKE) clean
 	$(MAKE) test CFLAGS='-O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie'
