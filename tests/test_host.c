@@ -3,6 +3,7 @@
 #include "support.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sched.h>
@@ -18,7 +19,7 @@ static void sockets(void)
     assert(amilan_socket_listen(&api,0)==-1); assert(amilan_socket_open(&api)); listen=amilan_socket_listen(&api,0); assert(listen>=0);
     assert(getsockname(listen,(struct sockaddr *)&address,&size)==0);
     assert(amilan_socket_accept(&api,listen)==AMILAN_AGAIN);
-    fd=amilan_socket_connect(&api,ip,ntohs(address.sin_port)); assert(fd>=0); amilan_peer_init(&c,fd,1,0);
+    amilan_peer_init(&c,-1,0,0);assert(amilan_connect(&api,&c,ip,ntohs(address.sin_port),0));fd=c.fd;assert(fd>=0);assert(!amilan_connect(&api,&c,ip,ntohs(address.sin_port),0));
     for(i=0;i<10000 && accepted<0;i++) { accepted=amilan_socket_accept(&api,listen); sched_yield(); }
     assert(accepted>=0); amilan_peer_init(&s,accepted,0,0);
     assert(amilan_peer_queue(&c,&p,0));
@@ -53,7 +54,10 @@ static void slots(void)
 int main(void){sockets();slots();
  struct amilan_peer p;struct amilan_packet ping={4,TEST_PING,{1,2,3,4}};
  amilan_peer_init(&p,100,0,0);
- assert(amilan_control_receive(&p,&ping,1,TEST_PING,TEST_PING+2,&test_codec)==0); /* validator rejects undefined reply */
- assert(!p.tx_len);assert(!amilan_deadline_expired(0xfffffff0u,0xfffffff0u+499u,500));
+ assert(amilan_control_receive(&p,&ping,1,TEST_PING,TEST_PONG,&test_codec)==1); /* application-selected pong */
+ assert(p.tx_len==12&&p.tx[3]==TEST_PONG);p.tx_len=AMILAN_TX_BYTES;struct amilan_peer before=p;
+ assert(!amilan_control_receive(&p,&ping,1,TEST_PING,TEST_PONG,&test_codec)&&!memcmp(&p,&before,sizeof(p)));
+ ping.type=TEST_PONG;assert(amilan_control_receive(&p,&ping,1,TEST_PING,TEST_PONG,&test_codec)==1);
+ ping.type=TEST_BLOB;assert(amilan_control_receive(&p,&ping,1,TEST_PING,TEST_PONG,&test_codec)==-1);assert(!amilan_deadline_expired(0xfffffff0u,0xfffffff0u+499u,500));
  assert(amilan_deadline_expired(0xfffffff0u,0xfffffff0u+500u,500));
  puts("real TCP, fixed slots, handshake deadline, slot reuse and control validation passed");return 0;}
