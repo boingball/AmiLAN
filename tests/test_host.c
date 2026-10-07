@@ -32,19 +32,20 @@ static void sockets(void)
 static void slots(void)
 {
     struct amilan_host h; struct sockaddr_in address; socklen_t size=sizeof(address);
-    uint8_t ip[4]={127,0,0,1}; int fd[4], accepted, i; unsigned attempts;
+    uint8_t ip[4]={127,0,0,1}; int fd[AMILAN_CONNECTIONS+1], accepted, i; unsigned attempts;
     amilan_host_init(&h); assert(!h.api.base && h.listener==-1);
     assert(amilan_host_open(&h,0)); assert(!amilan_host_open(&h,0));
     assert(!getsockname(h.listener,(struct sockaddr *)&address,&size));
-    for(i=0;i<4;i++) {
+    /* every slot, then one more: full */
+    for(i=0;i<=AMILAN_CONNECTIONS;i++) {
         fd[i]=amilan_socket_connect(&h.api,ip,ntohs(address.sin_port));assert(fd[i]>=0);
         accepted=0;
         for(attempts=0;attempts<10000&&!accepted;attempts++) { accepted=amilan_host_accept(&h,0);sched_yield(); }
-        assert(accepted==(i<3?i+1:AMILAN_HOST_FULL));
+        assert(accepted==(i<AMILAN_CONNECTIONS?i+1:AMILAN_HOST_FULL));
 
     }
-    assert(amilan_host_poll(&h,500,receive,expired,0,&test_codec)==14); /* all handshake deadlines */
-    for(i=0;i<4;i++)amilan_socket_close(&h.api,fd[i]);
+    assert(amilan_host_poll(&h,500,receive,expired,0,&test_codec)==((1U<<AMILAN_CONNECTIONS)-1)<<1); /* all handshake deadlines */
+    for(i=0;i<=AMILAN_CONNECTIONS;i++)amilan_socket_close(&h.api,fd[i]);
     /* A disconnected slot can be reused without retaining protocol state. */
     fd[0]=amilan_socket_connect(&h.api,ip,ntohs(address.sin_port));assert(fd[0]>=0);
     accepted=0;for(attempts=0;attempts<10000&&!accepted;attempts++) { accepted=amilan_host_accept(&h,501);sched_yield(); }

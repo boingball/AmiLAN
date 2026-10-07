@@ -43,7 +43,7 @@ long os_call(void *base,long lvo,const long *r)
         if(lvo==-54) { assert(a[4]==192&&a[5]==168&&a[6]==1&&a[7]==2);return connect_pending?-1:0; }
         assert(!a[4]&&!a[5]&&!a[6]&&!a[7]);return 0;
     }
-    case -42: assert(r[1]==3);return 0;
+    case -42: assert(r[1]==AMILAN_CONNECTIONS);return 0;
     case -48: assert(!r[8]&&!r[9]);return fd;
     case -162: return err;
     case -120: closes++;return 0;
