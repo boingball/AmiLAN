@@ -12,7 +12,7 @@ extraction, not a new networking stack.
 | `socket.h`, `host/socket.c`, `amiga/socket.c` | Lazy socket lifecycle, non-blocking TCP and UDP, listen/connect/accept, readiness, optional TCP_NODELAY, fixed socket buffers, IPv4 interfaces and broadcasts |
 | `protocol.h` | Endian helpers, strict IPv4 parsing, FNV-1a, eight-byte framing with application signature/version and optional validator |
 | `stream.h` | One bounded peer, fragmented frame reconstruction, partial I/O, backpressure, disconnect reasons and connect/idle/stall deadlines |
-| `host.h` | Three remote connection slots, one accept attempt per call, excess-connection rejection, slot reuse and closed-ID bitmask |
+| `host.h` | Seven remote connection slots (`AMILAN_CONNECTIONS`, a game may build with its own), one accept attempt per call, excess-connection rejection, slot reuse and closed-ID bitmask |
 | `link.h` | Wrap-safe staged-handshake deadlines and application-selected four-byte ping/pong controls |
 | `discovery.h` | Fixed UDP request framing, nonce/version checks, broadcast fallback, receive/reply budgets and search expiry; application payload callbacks |
 | `zlib.h` | Optional fixed-memory zlib chunk compression, independent of sockets and message framing |

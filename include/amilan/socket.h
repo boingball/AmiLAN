@@ -6,7 +6,11 @@
 #define AMILAN_AGAIN (-2)
 #define AMILAN_SOCKET_BUFFER 4096
 #define AMILAN_INTERFACES 4
-#define AMILAN_CONNECTIONS 3
+/* Remote connection slots a host takes (a game for eight is the host and
+ * seven more); also the listen backlog. A game may build with its own. */
+#ifndef AMILAN_CONNECTIONS
+#define AMILAN_CONNECTIONS 7
+#endif
 struct amilan_interface { uint8_t ip[4], broadcast[4]; };
 struct amilan_socket_api { void *base; };
 int amilan_socket_open(struct amilan_socket_api *api);
